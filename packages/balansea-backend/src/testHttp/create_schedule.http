@@ -1,0 +1,16 @@
+POST http://localhost:3000/schedule
+Authorization: Bearer YOUR_AUTH_TOKEN
+Content-Type: application/json
+
+{
+  "ethAddress": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "name": "Weekly ETH DCA!!!",
+  "purchaseAmount": 0.50,
+  "purchaseIntervalHuman": "20 seconds",
+  "description": "Buy some every 20 seconds"
+}
+
+> {%
+  client.global.set("scheduleId", response.body.data._id);
+  client.global.set("ethAddress", "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045");
+  %}
