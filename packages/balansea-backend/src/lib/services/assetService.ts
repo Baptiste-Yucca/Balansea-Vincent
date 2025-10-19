@@ -3,7 +3,7 @@ import { Asset } from '../mongo/models';
 
 const logger = consola.withTag('AssetService');
 
-// Assets par défaut pour Base
+// Assets par défaut pour Base avec les vrais IDs Pyth
 const DEFAULT_ASSETS = [
   {
     symbol: 'USDC',
@@ -11,7 +11,7 @@ const DEFAULT_ASSETS = [
     address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC sur Base
     decimals: 6,
     chainId: 8453,
-    pythPriceId: 'eaa020c61cc4797128134ce4e4c4d4e4d4e4d4e4d4e4d4e4d4e4d4e4d4e4d4e', // À remplacer par le vrai ID Pyth
+    pythPriceId: '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a', // USDC/USD sur Pyth
     logoUrl: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
   },
   {
@@ -20,7 +20,7 @@ const DEFAULT_ASSETS = [
     address: '0x4200000000000000000000000000000000000006', // WETH sur Base
     decimals: 18,
     chainId: 8453,
-    pythPriceId: 'eaa020c61cc4797128134ce4e4c4d4e4d4e4d4e4d4e4d4e4d4e4d4e4d4e4d4e', // À remplacer par le vrai ID Pyth
+    pythPriceId: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // ETH/USD sur Pyth
     logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
   },
   {
@@ -29,7 +29,7 @@ const DEFAULT_ASSETS = [
     address: '0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22', // WBTC sur Base
     decimals: 8,
     chainId: 8453,
-    pythPriceId: 'eaa020c61cc4797128134ce4e4c4d4e4d4e4d4e4d4e4d4e4d4e4d4e4d4e4d4e', // À remplacer par le vrai ID Pyth
+    pythPriceId: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // BTC/USD sur Pyth
     logoUrl: 'https://cryptologos.cc/logos/wrapped-bitcoin-wbtc-logo.png',
   },
 ];

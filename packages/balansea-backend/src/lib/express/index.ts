@@ -22,6 +22,13 @@ import {
   handleDeactivateAssetRoute,
 } from './assets';
 import {
+  handleGetPricesRoute,
+  handleGetPriceRoute,
+  handleGetPriceHistoryRoute,
+  handleGetPriceStatsRoute,
+  handleTestPythRoute,
+} from './prices';
+import {
   handleGetPortfoliosRoute,
   handleCreatePortfolioRoute,
   handleGetPortfolioRoute,
@@ -143,6 +150,23 @@ export const registerRoutes = (app: Express) => {
     setSentryUserMiddleware,
     handler(handleDeactivatePortfolioRoute)
   );
+
+  // Routes Pyth (prix)
+  app.get('/prices', middleware, setSentryUserMiddleware, handler(handleGetPricesRoute));
+  app.get('/prices/:symbol', middleware, setSentryUserMiddleware, handler(handleGetPriceRoute));
+  app.get(
+    '/prices/:symbol/history',
+    middleware,
+    setSentryUserMiddleware,
+    handler(handleGetPriceHistoryRoute)
+  );
+  app.get(
+    '/prices/:symbol/stats',
+    middleware,
+    setSentryUserMiddleware,
+    handler(handleGetPriceStatsRoute)
+  );
+  app.get('/pyth/test', middleware, setSentryUserMiddleware, handler(handleTestPythRoute));
 
   serviceLogger.info(`Routes registered`);
 };
