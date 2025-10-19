@@ -1,8 +1,8 @@
-# Vincent Starter App
+# Balansea
 
-A monorepo that powers the _Vincent DCA_ demo application.
+A monorepo that powers the _Balansea_ application.
 
-This project demonstrates how to schedule and execute recurring DCA (Dollar-Cost Averaging) swaps on behalf of end-users using a Vincent App and delegated agent wallets.
+This project demonstrates how to schedule and execute recurring Balansea (Dollar-Cost Averaging) swaps on behalf of end-users using a Vincent App and delegated agent wallets.
 
 ## Prerequisites
 
@@ -15,21 +15,21 @@ This project demonstrates how to schedule and execute recurring DCA (Dollar-Cost
 
 This codebase is composed of three main parts:
 
-- Frontend: React app where users can create, edit, and delete DCA tasks.
-- Database: MongoDB to persist DCA tasks.
+- Frontend: React app where users can create, edit, and delete Balansea tasks.
+- Database: MongoDB to persist Balansea tasks.
 - Backend (Node.js):
   - Express.js API server used by the frontend
-  - Agenda-based job scheduler that runs DCA jobs
+  - Agenda-based job scheduler that runs Balansea jobs
   - Integration with a Vincent App to execute swaps on behalf of users
     - Vincent ERC20 Approval ability: authorizes Uniswap to spend user tokens
     - Vincent Uniswap Swap ability: executes the actual token swaps
 
 ## Packages
 
-| Package                                         | Purpose                                                                          |
-| ----------------------------------------------- | -------------------------------------------------------------------------------- |
-| [dca-frontend](packages/dca-frontend/README.md) | Frontend for end-users to define DCA tasks to be run on a schedule               |
-| [dca-backend](packages/dca-backend/README.md)   | Backend REST API and worker instance using NodeJS; deployed to Heroku currently. |
+| Package                                                   | Purpose                                                                          |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [balansea-frontend](packages/balansea-frontend/README.md) | Frontend for end-users to define Balansea tasks to be run on a schedule          |
+| [balansea-backend](packages/balansea-backend/README.md)   | Backend REST API and worker instance using NodeJS; deployed to Heroku currently. |
 
 ## Vincent App
 
@@ -87,7 +87,7 @@ pnpm dev
 
 ## Production
 
-Production does not use `dotenvx`. Inject environment variables via your platform’s secret manager or environment configuration—do not write them to the runtime filesystem.
+Production does not use `dotenvx`. Inject environment variables via your platform's secret manager or environment configuration—do not write them to the runtime filesystem.
 
 Then start the services with:
 
@@ -98,18 +98,18 @@ pnpm start
 ## Notes and Gotchas
 
 - You will most likely not run API and Worker instances on the same server.
-- The abilities you execute MUST match the exact versions connected in each user’s agent wallet.
-  - If you update an ability, users must reconnect; you cannot use a newer version they haven’t approved.
+- The abilities you execute MUST match the exact versions connected in each user's agent wallet.
+  - If you update an ability, users must reconnect; you cannot use a newer version they haven't approved.
   - If you support multiple versions of the same Vincent App, your server may need to run multiple versions of abilities side-by-side.
   - Install specific versions of abilities in your app to avoid version conflicts.
 - Users can revoke or update their connection at any time; handle revocations and version changes gracefully.
 - Always call prepare and precheck functions for abilities to avoid preventable errors.
-- Users’ agent wallets send their own transactions. Ensure they have sufficient funds for gas, unless you plan to sponsor it.
+- Users' agent wallets send their own transactions. Ensure they have sufficient funds for gas, unless you plan to sponsor it.
 
 ## Disclaimers
 
 - This is a demo application and is not intended for production use without considerable modifications.
-- The software is provided “as is”, without warranty of any kind, express or implied, including but
+- The software is provided "as is", without warranty of any kind, express or implied, including but
   not limited to the warranties of merchantability, fitness for a particular purpose and
   noninfringement. We make no guarantees about its stability or suitability for production use. It
   is provided for demo and educational purposes.

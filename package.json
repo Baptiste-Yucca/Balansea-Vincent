@@ -1,9 +1,9 @@
 {
-  "name": "vincent-dca",
+  "name": "balansea",
   "private": true,
   "version": "1.0.0",
-  "description": "Monorepo for vincent DCA backend + frontend",
-  "homepage": "https://github.com/LIT-protocol/vincent-dca",
+  "description": "Monorepo for Balansea backend + frontend",
+  "homepage": "https://github.com/Baptiste-Yucca/Balansea-Vincent",
   "engines": {
     "node": "^22.16.0",
     "pnpm": "10.7.0"

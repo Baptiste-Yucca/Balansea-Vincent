@@ -1,3 +1,0 @@
-GET http://localhost:3000/schedules/{{ethAddress}}
-Authorization: Bearer YOUR_AUTH_TOKEN
-

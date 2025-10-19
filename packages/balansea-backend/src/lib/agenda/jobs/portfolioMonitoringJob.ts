@@ -1,8 +1,9 @@
 import { Job } from 'agenda';
+import consola from 'consola';
 import { Portfolio } from '../../mongo/models';
 import { RebalanceService } from '../../services/rebalanceService';
-import { CowSwapAbility } from '../vincent/cowSwapAbility';
-import { serviceLogger } from '../../logger';
+import { DynamicSwapService } from '../vincent/dynamicSwapService';
+import { BalanceService } from '../../services/balanceService';
 
 export interface PortfolioMonitoringJobData {
   portfolioId: string;
@@ -14,30 +15,42 @@ export class PortfolioMonitoringJob {
     const { portfolioId } = job.attrs.data;
 
     try {
-      serviceLogger.info(`Surveillance portfolio ${portfolioId}`);
+      consola.info(`Surveillance portfolio ${portfolioId}`);
 
-      // 1. Vérifier si le portfolio a besoin d'être rééquilibré
-      const needsRebalancing = await RebalanceService.needsRebalancing(portfolioId);
-
-      if (!needsRebalancing) {
-        serviceLogger.info(`Portfolio ${portfolioId} - Aucun rééquilibrage nécessaire`);
+      // 1. Vérifier si le portfolio existe et est actif
+      const portfolio = await Portfolio.findById(portfolioId);
+      if (!portfolio || !portfolio.isActive) {
+        consola.warn(`Portfolio ${portfolioId} non trouvé ou inactif`);
         return;
       }
 
-      // 2. Créer le plan de rééquilibrage
-      const rebalancePlan = await RebalanceService.createRebalancePlan(portfolioId);
+      // 2. Mettre à jour les balances depuis la blockchain
+      await BalanceService.updatePortfolioBalances(portfolioId, portfolio.ethAddress);
 
-      serviceLogger.info(`Portfolio ${portfolioId} - Rééquilibrage nécessaire:`, {
-        totalValue: rebalancePlan.totalValueUSD,
-        swaps: rebalancePlan.swaps.length,
-      });
+      // 3. Calculer les déviations avec les balances à jour
+      const deviations = await RebalanceService.calculateDeviations(portfolioId);
 
-      // 3. Exécuter les swaps via Cow.finance
-      if (rebalancePlan.swaps.length > 0) {
-        await this.executeRebalancing(portfolioId, rebalancePlan);
+      // 4. Vérifier si un rééquilibrage est nécessaire
+      const needsRebalance = deviations.some((d) => d.needsRebalance);
+
+      if (needsRebalance) {
+        consola.info(`Rééquilibrage nécessaire pour le portfolio ${portfolioId}`);
+
+        // 5. Créer le plan de rééquilibrage
+        const rebalancePlan = await RebalanceService.createRebalancePlan(portfolioId);
+
+        if (rebalancePlan.needsRebalance) {
+          // 6. Exécuter le rééquilibrage
+          await this.executeRebalancing(portfolioId, rebalancePlan);
+
+          // 7. Mettre à jour les balances après le rééquilibrage
+          await BalanceService.updatePortfolioBalances(portfolioId, portfolio.ethAddress);
+        }
+      } else {
+        consola.info(`Portfolio ${portfolioId} équilibré`);
       }
     } catch (error) {
-      serviceLogger.error(`Erreur surveillance portfolio ${portfolioId}:`, error);
+      consola.error(`Erreur surveillance portfolio ${portfolioId}:`, error);
       throw error;
     }
   }
@@ -45,20 +58,28 @@ export class PortfolioMonitoringJob {
   /** Exécuter le rééquilibrage */
   private static async executeRebalancing(portfolioId: string, plan: any): Promise<void> {
     try {
-      serviceLogger.info(`Exécution rééquilibrage portfolio ${portfolioId}`);
+      consola.info(`Exécution rééquilibrage portfolio ${portfolioId}`);
 
-      // 1. Créer les ordres Cow.finance
-      const swapResults = await CowSwapAbility.executeRebalanceSwaps(plan.swaps);
+      // 1. Convertir les swaps pour le service dynamique
+      const dynamicSwaps = plan.swaps.map((swap: any) => ({
+        fromAsset: swap.fromAsset,
+        toAsset: swap.toAsset,
+        amount: swap.amount,
+        recipient: plan.portfolioId, // À adapter selon votre logique
+      }));
 
-      // 2. Enregistrer les résultats en base
+      // 2. Exécuter les swaps via Uniswap
+      const swapResults = await DynamicSwapService.executeRebalanceSwaps(dynamicSwaps);
+
+      // 3. Enregistrer les résultats en base
       await this.recordRebalanceJob(portfolioId, plan, swapResults);
 
-      // 3. Mettre à jour le portfolio
+      // 4. Mettre à jour le portfolio
       await this.updatePortfolioAfterRebalance(portfolioId, plan);
 
-      serviceLogger.info(`Rééquilibrage portfolio ${portfolioId} terminé`);
+      consola.info(`Rééquilibrage portfolio ${portfolioId} terminé`);
     } catch (error) {
-      serviceLogger.error(`Erreur exécution rééquilibrage ${portfolioId}:`, error);
+      consola.error(`Erreur exécution rééquilibrage ${portfolioId}:`, error);
       throw error;
     }
   }
@@ -89,7 +110,7 @@ export class PortfolioMonitoringJob {
 
       await rebalanceJob.save();
     } catch (error) {
-      serviceLogger.error('Erreur enregistrement job rééquilibrage:', error);
+      consola.error('Erreur enregistrement job rééquilibrage:', error);
     }
   }
 
@@ -122,7 +143,7 @@ export class PortfolioMonitoringJob {
         );
       }
     } catch (error) {
-      serviceLogger.error('Erreur mise à jour portfolio:', error);
+      consola.error('Erreur mise à jour portfolio:', error);
     }
   }
 }

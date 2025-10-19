@@ -1,7 +1,9 @@
 import { Types } from 'mongoose';
+import consola from 'consola';
 import { Portfolio, Allocation, PriceData } from '../mongo/models';
 import { PythService } from './pythService';
-import { serviceLogger } from '../logger';
+import { DynamicSwapService } from '../vincent/dynamicSwapService';
+import { BalanceService } from './balanceService';
 
 export interface DeviationResult {
   assetSymbol: string;
@@ -33,52 +35,50 @@ export class RebalanceService {
   /** Calculer les déviations d'un portfolio */
   static async calculateDeviations(portfolioId: string): Promise<DeviationResult[]> {
     try {
-      const portfolio = await Portfolio.findById(portfolioId).populate({
-        path: 'allocations',
-        populate: {
-          path: 'assetId',
-          model: 'Asset',
-        },
-      });
-
+      const portfolio = await Portfolio.findById(portfolioId);
       if (!portfolio) {
         throw new Error('Portfolio non trouvé');
       }
 
-      // 1. Récupérer les prix actuels
-      const currentPrices = await this.getCurrentPrices(portfolio.allocations);
+      // Utiliser le service de balances pour obtenir les données à jour
+      const portfolioBalance = await BalanceService.getPortfolioBalances(portfolioId);
 
-      // 2. Calculer la valeur totale du portfolio
-      const totalValueUSD = await this.calculateTotalValue(portfolio.allocations, currentPrices);
+      const allocations = await Allocation.find({ portfolioId }).populate('assetId').lean();
 
-      // 3. Calculer les pourcentages actuels et déviations
       const deviations: DeviationResult[] = [];
 
-      for (const allocation of portfolio.allocations) {
-        const asset = allocation.assetId;
-        const currentPrice = currentPrices.get(asset.symbol) || 0;
-        const currentValueUSD = allocation.currentBalance
-          ? parseFloat(allocation.currentBalance) * currentPrice
-          : 0;
+      for (const allocation of allocations) {
+        const asset = allocation.assetId as any;
 
-        const currentPercentage = totalValueUSD > 0 ? currentValueUSD / totalValueUSD : 0;
-        const targetPercentage = allocation.targetPercentage;
-        const deviation = Math.abs(currentPercentage - targetPercentage);
+        // Trouver la balance correspondante
+        const balanceInfo = portfolioBalance.balances.find((b) => b.assetSymbol === asset.symbol);
+        if (!balanceInfo) {
+          consola.warn(`Balance non trouvée pour ${asset.symbol}`);
+          continue;
+        }
+
+        const currentPercentage =
+          portfolioBalance.totalValueUSD > 0
+            ? balanceInfo.valueUSD / portfolioBalance.totalValueUSD
+            : 0;
+
+        const deviation = Math.abs(currentPercentage - allocation.targetPercentage);
+        const needsRebalance = deviation > (portfolio.rebalanceThreshold || 0.05); // Seuil par défaut 5%
 
         deviations.push({
           assetSymbol: asset.symbol,
-          targetPercentage,
+          targetPercentage: allocation.targetPercentage,
           currentPercentage,
           deviation,
-          needsRebalance: deviation > portfolio.rebalanceThreshold,
-          currentValueUSD,
-          targetValueUSD: totalValueUSD * targetPercentage,
+          needsRebalance,
+          currentValueUSD: balanceInfo.valueUSD,
+          targetValueUSD: portfolioBalance.totalValueUSD * allocation.targetPercentage,
         });
       }
 
       return deviations;
     } catch (error) {
-      serviceLogger.error('Erreur calcul déviations:', error);
+      consola.error('Erreur calcul déviations:', error);
       throw error;
     }
   }
@@ -178,11 +178,16 @@ export class RebalanceService {
           const amountToSell = (excess.currentValueUSD - excess.targetValueUSD) / 2; // Diviser par 2 pour éviter les overshoots
 
           if (amountToSell > 0) {
+            // Convertir le montant USD en montant de token
+            const currentPrice =
+              excess.currentValueUSD / (parseFloat(excess.assetSymbol === 'WBTC' ? '1' : '1') || 1); // Simplifié
+            const tokenAmount = amountToSell / currentPrice;
+
             swaps.push({
               fromAsset: excess.assetSymbol,
               toAsset: deficit.assetSymbol,
-              amount: amountToSell,
-              expectedAmount: amountToSell, // Sera calculé avec le prix de marché
+              amount: tokenAmount,
+              expectedAmount: amountToSell, // Montant USD attendu
               reason: `Rééquilibrage: ${excess.assetSymbol} -> ${deficit.assetSymbol}`,
             });
           }
