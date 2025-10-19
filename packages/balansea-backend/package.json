@@ -55,6 +55,7 @@
     "@lit-protocol/vincent-contracts-sdk": "^1.0.1",
     "@lit-protocol/vincent-scaffold-sdk": "1.1.9-mma",
     "@noble/secp256k1": "^2.2.3",
+    "@pythnetwork/hermes-client": "^2.0.0",
     "@sentry/cli": "^2.52.0",
     "@sentry/node": "^10.5.0",
     "@t3-oss/env-core": "^0.12.0",
