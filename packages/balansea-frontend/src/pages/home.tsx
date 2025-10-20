@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 
 import { CreatePortfolio } from '@/components/create-portfolio';
 import { ActivePortfolios } from '@/components/active-portfolios';
+import { Wallet } from '@/components/wallet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 enum Tab {
   CreatePortfolio = 'create-portfolio',
   ActivePortfolios = 'active-portfolios',
+  MyWallet = 'my-wallet',
 }
 
 export const Home: React.FC = () => {
@@ -33,9 +35,10 @@ export const Home: React.FC = () => {
           onValueChange={(value) => setActiveTab(value as Tab)}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value={Tab.CreatePortfolio}>Créer un Portfolio</TabsTrigger>
             <TabsTrigger value={Tab.ActivePortfolios}>Mes Portfolios</TabsTrigger>
+            <TabsTrigger value={Tab.MyWallet}>My Wallet</TabsTrigger>
           </TabsList>
 
           <TabsContent value={Tab.CreatePortfolio}>
@@ -44,6 +47,10 @@ export const Home: React.FC = () => {
 
           <TabsContent value={Tab.ActivePortfolios}>
             <ActivePortfolios />
+          </TabsContent>
+
+          <TabsContent value={Tab.MyWallet}>
+            <Wallet />
           </TabsContent>
         </Tabs>
       </div>
