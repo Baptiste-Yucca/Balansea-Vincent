@@ -16,7 +16,7 @@ const defaultConfig = {
   defaultLockLifetime: 2 * 60 * 1000, // 2 minutes default lock time
   defaultLockLimit: 1,
   maxConcurrency: 1,
-  processInterval: '10 seconds',
+  processInterval: '10s',
 };
 
 let agendaInstance: Agenda | null = null;

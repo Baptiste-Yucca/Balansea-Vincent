@@ -15,7 +15,6 @@ const priceDataSchemaDefinition = {
   timestamp: {
     required: true,
     type: Date,
-    index: true,
   },
   source: {
     type: String,
@@ -29,17 +28,17 @@ const priceDataSchemaDefinition = {
   },
   expo: {
     type: Number,
-    default: -8, // Pyth utilise des exposants
+    default: -8, // Pyth uses exponents
   },
 } as const;
 
 const PriceDataSchema = new Schema(priceDataSchemaDefinition, { timestamps: false });
 
-// Index composé pour les requêtes de prix
+// Composite index for price queries
 PriceDataSchema.index({ assetId: 1, timestamp: -1 });
 PriceDataSchema.index({ timestamp: -1 });
 
-// TTL pour nettoyer les anciens prix (garder 30 jours)
+// TTL to clean up old prices (keep 30 days)
 PriceDataSchema.index({ timestamp: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 export const PriceData = model('PriceData', PriceDataSchema);

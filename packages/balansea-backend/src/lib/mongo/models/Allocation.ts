@@ -5,7 +5,6 @@ const allocationSchemaDefinition = {
     required: true,
     type: Schema.Types.ObjectId,
     ref: 'Portfolio',
-    index: true,
   },
   assetId: {
     required: true,

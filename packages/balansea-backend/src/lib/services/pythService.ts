@@ -49,8 +49,8 @@ export class PythService {
         return new Map();
       }
 
-      // Extraire les IDs Pyth
-      const priceIds = assets.map((asset) => asset.pythPriceId).filter(Boolean);
+      // Extract Pyth price IDs
+      const priceIds = assets.map((asset) => asset.pythPriceId).filter(Boolean) as string[];
 
       consola.info(`Récupération des prix pour ${priceIds.length} assets`);
       consola.info('📋 Assets trouvés:');
@@ -66,25 +66,27 @@ export class PythService {
 
       const prices = new Map<string, PythPrice>();
 
-      for (const update of priceUpdates.parsed) {
-        // Trouver l'asset correspondant
-        const asset = assets.find((a) => a.pythPriceId === update.id);
-        if (!asset) continue;
+      if (priceUpdates.parsed) {
+        for (const update of priceUpdates.parsed) {
+          // Trouver l'asset correspondant
+          const asset = assets.find((a) => a.pythPriceId === update.id);
+          if (!asset) continue;
 
-        const price = update.price;
-        const priceInUsd = parseFloat(price.price) * Math.pow(10, price.expo);
-        const confidence = parseFloat(price.conf) * Math.pow(10, price.expo);
+          const price = update.price;
+          const priceInUsd = parseFloat(price.price) * Math.pow(10, price.expo);
+          const confidence = parseFloat(price.conf) * Math.pow(10, price.expo);
 
-        prices.set(asset.symbol, {
-          symbol: asset.symbol,
-          price: priceInUsd,
-          timestamp: new Date(),
-          confidence,
-          expo: price.expo,
-        });
+          prices.set(asset.symbol, {
+            symbol: asset.symbol,
+            price: priceInUsd,
+            timestamp: new Date(),
+            confidence,
+            expo: price.expo,
+          });
 
-        // Sauvegarder en base pour l'historique
-        await this.savePriceToDatabase(asset.symbol, priceInUsd, confidence);
+          // Save to database for history
+          await this.savePriceToDatabase(asset.symbol, priceInUsd, confidence);
+        }
       }
 
       consola.info(`Prix récupérés pour ${prices.size} assets`);
@@ -113,28 +115,28 @@ export class PythService {
 
       const priceUpdates = await this.client.getLatestPriceUpdates([asset.pythPriceId]);
 
-      if (priceUpdates.parsed.length === 0) {
-        consola.warn(`Aucun prix trouvé pour ${symbol}`);
+      if (priceUpdates.parsed && priceUpdates.parsed.length > 0) {
+        const update = priceUpdates.parsed[0];
+        const price = update.price;
+        const priceInUsd = parseFloat(price.price) * Math.pow(10, price.expo);
+        const confidence = parseFloat(price.conf) * Math.pow(10, price.expo);
+
+        const pythPrice: PythPrice = {
+          symbol: asset.symbol,
+          price: priceInUsd,
+          timestamp: new Date(),
+          confidence,
+          expo: price.expo,
+        };
+
+        // Save to database
+        await this.savePriceToDatabase(asset.symbol, priceInUsd, confidence);
+
+        return pythPrice;
+      } else {
+        consola.warn(`No price found for ${symbol}`);
         return null;
       }
-
-      const update = priceUpdates.parsed[0];
-      const price = update.price;
-      const priceInUsd = parseFloat(price.price) * Math.pow(10, price.expo);
-      const confidence = parseFloat(price.conf) * Math.pow(10, price.expo);
-
-      const pythPrice: PythPrice = {
-        symbol: asset.symbol,
-        price: priceInUsd,
-        timestamp: new Date(),
-        confidence,
-        expo: price.expo,
-      };
-
-      // Sauvegarder en base
-      await this.savePriceToDatabase(asset.symbol, priceInUsd, confidence);
-
-      return pythPrice;
     } catch (error) {
       consola.error(`Erreur récupération prix ${symbol}:`, error);
       return null;
@@ -167,7 +169,7 @@ export class PythService {
 
       const streamOptions = {
         parsed: true,
-        encoding: 'hex',
+        encoding: 'hex' as const,
         allowUnordered: true,
         ignoreInvalidPriceIds: true,
       };
@@ -211,7 +213,7 @@ export class PythService {
                 `[${timestamp}] #${updateCounter} ${asset.symbol}: $${priceInUsd.toFixed(2)} (±${confidence.toFixed(2)})`
               );
 
-              // Sauvegarder en base
+              // Save to database
               await this.savePriceToDatabase(asset.symbol, priceInUsd, confidence);
             }
           } else {
@@ -248,57 +250,81 @@ export class PythService {
     }
   }
 
-  /** Sauvegarder un prix en base de données */
+  /** Save price data to database */
   private static async savePriceToDatabase(
     symbol: string,
-    price: number,
+    priceUSD: number,
     confidence: number
   ): Promise<void> {
     try {
+      // Get asset to retrieve assetId
+      const asset = await Asset.findOne({ symbol: symbol.toUpperCase() });
+      if (!asset) {
+        consola.warn(`Asset ${symbol} not found`);
+        return;
+      }
+
+      // Normalize confidence (Pyth returns percentages, we need values between 0 and 1)
+      const normalizedConfidence = Math.min(confidence / 100, 1);
+
       const priceData = new PriceData({
-        symbol: symbol.toUpperCase(),
-        price,
-        confidence,
+        assetId: asset._id,
+        priceUSD,
+        confidence: normalizedConfidence,
         source: 'pyth',
         timestamp: new Date(),
       });
 
       await priceData.save();
     } catch (error) {
-      consola.error(`Erreur sauvegarde prix ${symbol}:`, error);
+      consola.error(`Error saving price ${symbol}:`, error);
     }
   }
 
-  /** Obtenir l'historique des prix pour un asset */
-  static async getPriceHistory(symbol: string, hours: number = 24): Promise<PriceData[]> {
+  /** Get price history for an asset */
+  static async getPriceHistory(symbol: string, hours: number = 24): Promise<any[]> {
     try {
+      // Get asset to retrieve assetId
+      const asset = await Asset.findOne({ symbol: symbol.toUpperCase() });
+      if (!asset) {
+        consola.warn(`Asset ${symbol} not found`);
+        return [];
+      }
+
       const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
       return await PriceData.find({
-        symbol: symbol.toUpperCase(),
+        assetId: asset._id,
         source: 'pyth',
         timestamp: { $gte: since },
       }).sort({ timestamp: -1 });
     } catch (error) {
-      consola.error(`Erreur récupération historique ${symbol}:`, error);
+      consola.error(`Error fetching price history ${symbol}:`, error);
       return [];
     }
   }
 
-  /** Obtenir le dernier prix enregistré pour un asset */
-  static async getLatestPrice(symbol: string): Promise<PriceData | null> {
+  /** Get the latest recorded price for an asset */
+  static async getLatestPrice(symbol: string): Promise<any | null> {
     try {
+      // Get asset to retrieve assetId
+      const asset = await Asset.findOne({ symbol: symbol.toUpperCase() });
+      if (!asset) {
+        consola.warn(`Asset ${symbol} not found`);
+        return null;
+      }
+
       return await PriceData.findOne({
-        symbol: symbol.toUpperCase(),
+        assetId: asset._id,
         source: 'pyth',
       }).sort({ timestamp: -1 });
     } catch (error) {
-      consola.error(`Erreur récupération dernier prix ${symbol}:`, error);
+      consola.error(`Error fetching latest price ${symbol}:`, error);
       return null;
     }
   }
 
-  /** Vérifier si un prix est récent (moins de 5 minutes) */
+  /** Check if a price is recent (less than maxAgeMinutes) */
   static async isPriceRecent(symbol: string, maxAgeMinutes: number = 5): Promise<boolean> {
     try {
       const latestPrice = await this.getLatestPrice(symbol);
@@ -309,7 +335,7 @@ export class PythService {
 
       return diffMinutes <= maxAgeMinutes;
     } catch (error) {
-      consola.error(`Erreur vérification prix récent ${symbol}:`, error);
+      consola.error(`Error checking recent price ${symbol}:`, error);
       return false;
     }
   }

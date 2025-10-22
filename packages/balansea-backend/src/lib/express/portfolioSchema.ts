@@ -20,9 +20,9 @@ export const CreatePortfolioSchema = z.object({
     ),
   rebalanceThreshold: z.number().min(0.001).max(0.5).optional().default(0.05),
   monitoringFrequency: z
-    .enum(['10s', '1m', '5m', '15m', '1h', '4h', '1d'])
+    .enum(['10 seconds', '1 minute', '1 hour', '1 day'])
     .optional()
-    .default('1h'),
+    .default('10 seconds'),
   rebalanceType: z.enum(['threshold', 'strict_periodic']).optional().default('threshold'),
 });
 

@@ -27,8 +27,8 @@ const portfolioSchemaDefinition = {
   monitoringFrequency: {
     required: true,
     type: String,
-    enum: ['10s', '1m', '5m', '15m', '1h', '4h', '1d'],
-    default: '1h',
+    enum: ['10 seconds', '1 minute', '1 hour', '1 day'],
+    default: '1 hour',
   },
   rebalanceType: {
     required: true,

@@ -1,5 +1,6 @@
 import consola from 'consola';
 import { Portfolio, Allocation, Asset } from '../mongo/models';
+import { createPortfolioJob } from '../agenda/jobs/portfolioJobManager';
 
 const logger = consola.withTag('PortfolioService');
 
@@ -68,6 +69,24 @@ export class PortfolioService {
       }
 
       logger.log(`Created portfolio: ${data.name} for ${data.ethAddress}`);
+
+      // Schedule portfolio monitoring job (like DCA jobs)
+      try {
+        await createPortfolioJob(
+          {
+            portfolioId: portfolio._id.toString(),
+            ethAddress: data.ethAddress,
+            rebalanceType: data.rebalanceType || 'threshold',
+            monitoringFrequency: data.monitoringFrequency || '1h',
+          },
+          { interval: data.monitoringFrequency || '1h' }
+        );
+        logger.log(`Scheduled portfolio monitoring job for portfolio ${portfolio._id}`);
+      } catch (error) {
+        logger.error('Failed to schedule portfolio monitoring job:', error);
+        // Don't fail portfolio creation if job scheduling fails
+      }
+
       return await this.getPortfolioWithAllocations(portfolio._id.toString());
     } catch (error) {
       logger.error('Error creating portfolio:', error);

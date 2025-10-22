@@ -25,10 +25,7 @@ export interface EditPortfolioDialogProps {
 const MONITORING_FREQUENCIES = [
   { value: '10s', label: '10 secondes' },
   { value: '1m', label: '1 minute' },
-  { value: '5m', label: '5 minutes' },
-  { value: '15m', label: '15 minutes' },
   { value: '1h', label: '1 heure' },
-  { value: '4h', label: '4 heures' },
   { value: '1d', label: '1 jour' },
 ];
 
