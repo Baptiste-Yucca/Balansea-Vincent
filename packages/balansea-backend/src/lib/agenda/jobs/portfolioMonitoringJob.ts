@@ -27,27 +27,36 @@ export class PortfolioMonitoringJob {
       // 2. Mettre à jour les balances depuis la blockchain
       await BalanceService.updatePortfolioBalances(portfolioId, portfolio.ethAddress);
 
-      // 3. Calculer les déviations avec les balances à jour
-      const deviations = await RebalanceService.calculateDeviations(portfolioId);
+      // 3. Choisir la stratégie de rééquilibrage selon le type
+      if (portfolio.rebalanceType === 'strict_periodic') {
+        consola.info(`Rééquilibrage strict périodique pour le portfolio ${portfolioId}`);
 
-      // 4. Vérifier si un rééquilibrage est nécessaire
-      const needsRebalance = deviations.some((d) => d.needsRebalance);
+        // Mode strict : toujours rééquilibrer vers les allocations exactes
+        const strictRebalancePlan = await RebalanceService.createStrictRebalancePlan(portfolioId);
 
-      if (needsRebalance) {
-        consola.info(`Rééquilibrage nécessaire pour le portfolio ${portfolioId}`);
-
-        // 5. Créer le plan de rééquilibrage
-        const rebalancePlan = await RebalanceService.createRebalancePlan(portfolioId);
-
-        if (rebalancePlan.needsRebalance) {
-          // 6. Exécuter le rééquilibrage
-          await this.executeRebalancing(portfolioId, rebalancePlan);
-
-          // 7. Mettre à jour les balances après le rééquilibrage
+        if (strictRebalancePlan.swaps.length > 0) {
+          await this.executeRebalancing(portfolioId, strictRebalancePlan);
           await BalanceService.updatePortfolioBalances(portfolioId, portfolio.ethAddress);
+        } else {
+          consola.info(`Portfolio ${portfolioId} déjà parfaitement équilibré`);
         }
       } else {
-        consola.info(`Portfolio ${portfolioId} équilibré`);
+        // Mode threshold : rééquilibrer seulement si dépassement du seuil
+        const deviations = await RebalanceService.calculateDeviations(portfolioId);
+        const needsRebalance = deviations.some((d) => d.needsRebalance);
+
+        if (needsRebalance) {
+          consola.info(`Rééquilibrage nécessaire pour le portfolio ${portfolioId}`);
+
+          const rebalancePlan = await RebalanceService.createRebalancePlan(portfolioId);
+
+          if (rebalancePlan.needsRebalance) {
+            await this.executeRebalancing(portfolioId, rebalancePlan);
+            await BalanceService.updatePortfolioBalances(portfolioId, portfolio.ethAddress);
+          }
+        } else {
+          consola.info(`Portfolio ${portfolioId} équilibré`);
+        }
       }
     } catch (error) {
       consola.error(`Erreur surveillance portfolio ${portfolioId}:`, error);

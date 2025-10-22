@@ -108,8 +108,8 @@ export const ActivePortfolios: React.FC = () => {
         <CardContent className="text-center p-6">
           <div className="text-gray-500 mb-4">
             <TrendingUp className="h-12 w-12 mx-auto mb-2" />
-            <h3 className="text-lg font-medium">Aucun portfolio actif</h3>
-            <p>Créez votre premier portfolio pour commencer le rééquilibrage automatique</p>
+            <h3 className="text-lg font-medium">No active portfolio</h3>
+            <p>Create your first portfolio to start automatic rebalancing</p>
           </div>
         </CardContent>
       </Card>
@@ -119,9 +119,9 @@ export const ActivePortfolios: React.FC = () => {
   return (
     <Box className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Mes Portfolios</h2>
+        <h2 className="text-2xl font-bold">My Portfolios</h2>
         <Button onClick={loadPortfolios} variant="outline">
-          Actualiser
+          Refresh
         </Button>
       </div>
 
@@ -135,7 +135,7 @@ export const ActivePortfolios: React.FC = () => {
                   <div className="flex items-center gap-2 mt-2">
                     {getStatusBadge(portfolio)}
                     <Badge variant="outline">
-                      Seuil: {formatPercentage(portfolio.rebalanceThreshold)}
+                      Threshold: {formatPercentage(portfolio.rebalanceThreshold)}
                     </Badge>
                     <Badge variant="outline">{portfolio.monitoringFrequency}</Badge>
                   </div>
@@ -176,7 +176,7 @@ export const ActivePortfolios: React.FC = () => {
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <DollarSign className="h-6 w-6 mx-auto mb-2 text-green-600" />
                   <div className="text-2xl font-bold">{formatValue(portfolio.totalValueUSD)}</div>
-                  <div className="text-sm text-gray-600">Valeur Totale</div>
+                  <div className="text-sm text-gray-600">Total Value</div>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <TrendingUp className="h-6 w-6 mx-auto mb-2 text-blue-600" />
@@ -187,10 +187,10 @@ export const ActivePortfolios: React.FC = () => {
                   <Clock className="h-6 w-6 mx-auto mb-2 text-purple-600" />
                   <div className="text-2xl font-bold">
                     {portfolio.lastRebalanceAt
-                      ? new Date(portfolio.lastRebalanceAt).toLocaleDateString('fr-FR')
-                      : 'Jamais'}
+                      ? new Date(portfolio.lastRebalanceAt).toLocaleDateString('en-US')
+                      : 'Never'}
                   </div>
-                  <div className="text-sm text-gray-600">Dernier Rééquilibrage</div>
+                  <div className="text-sm text-gray-600">Last Rebalancing</div>
                 </div>
               </div>
 
@@ -200,10 +200,10 @@ export const ActivePortfolios: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Asset</TableHead>
-                      <TableHead>Allocation Cible</TableHead>
-                      <TableHead>Allocation Actuelle</TableHead>
-                      <TableHead>Valeur USD</TableHead>
-                      <TableHead>Déviation</TableHead>
+                      <TableHead>Target Allocation</TableHead>
+                      <TableHead>Current Allocation</TableHead>
+                      <TableHead>USD Value</TableHead>
+                      <TableHead>Deviation</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

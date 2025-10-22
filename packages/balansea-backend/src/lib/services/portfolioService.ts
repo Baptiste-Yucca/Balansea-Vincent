@@ -18,6 +18,7 @@ export class PortfolioService {
     }>;
     rebalanceThreshold?: number;
     monitoringFrequency?: string;
+    rebalanceType?: string;
   }): Promise<any> {
     try {
       // Vérifier que la somme des allocations = 100%
@@ -37,6 +38,7 @@ export class PortfolioService {
         pkpInfo: data.pkpInfo,
         rebalanceThreshold: data.rebalanceThreshold || 0.05, // 5% par défaut
         monitoringFrequency: data.monitoringFrequency || '1h',
+        rebalanceType: data.rebalanceType || 'threshold',
         totalValueUSD: 0,
       });
 
@@ -66,7 +68,7 @@ export class PortfolioService {
       }
 
       logger.log(`Created portfolio: ${data.name} for ${data.ethAddress}`);
-      return await this.getPortfolioWithAllocations(portfolio._id);
+      return await this.getPortfolioWithAllocations(portfolio._id.toString());
     } catch (error) {
       logger.error('Error creating portfolio:', error);
       throw error;
@@ -107,7 +109,7 @@ export class PortfolioService {
       }).sort({ createdAt: -1 });
 
       const portfoliosWithAllocations = await Promise.all(
-        portfolios.map((portfolio) => this.getPortfolioWithAllocations(portfolio._id))
+        portfolios.map((portfolio) => this.getPortfolioWithAllocations(portfolio._id.toString()))
       );
 
       return portfoliosWithAllocations;

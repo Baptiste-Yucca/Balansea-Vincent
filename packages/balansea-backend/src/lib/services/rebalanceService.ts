@@ -204,4 +204,93 @@ export class RebalanceService {
     const diffMinutes = (now.getTime() - timestamp.getTime()) / (1000 * 60);
     return diffMinutes < 5;
   }
+
+  /** Créer un plan de rééquilibrage strict (toujours vers les allocations exactes) */
+  static async createStrictRebalancePlan(portfolioId: string): Promise<RebalancePlan> {
+    try {
+      const portfolio = await Portfolio.findById(portfolioId);
+      if (!portfolio) {
+        throw new Error('Portfolio non trouvé');
+      }
+
+      // Utiliser le service de balances pour obtenir les données à jour
+      const portfolioBalance = await BalanceService.getPortfolioBalances(portfolioId);
+      const allocations = await Allocation.find({ portfolioId }).populate('assetId').lean();
+
+      const deviations: DeviationResult[] = [];
+      const swaps: SwapOperation[] = [];
+
+      // Calculer les déviations et créer les swaps pour chaque allocation
+      for (const allocation of allocations) {
+        const asset = allocation.assetId as any;
+        const balanceInfo = portfolioBalance.balances.find((b) => b.assetSymbol === asset.symbol);
+
+        if (!balanceInfo) {
+          consola.warn(`Balance non trouvée pour ${asset.symbol}`);
+          continue;
+        }
+
+        const currentPercentage =
+          portfolioBalance.totalValueUSD > 0
+            ? balanceInfo.valueUSD / portfolioBalance.totalValueUSD
+            : 0;
+
+        const targetValueUSD = portfolioBalance.totalValueUSD * allocation.targetPercentage;
+        const deviation = Math.abs(currentPercentage - allocation.targetPercentage);
+
+        deviations.push({
+          assetSymbol: asset.symbol,
+          targetPercentage: allocation.targetPercentage,
+          currentPercentage,
+          deviation,
+          needsRebalance: true, // Toujours true pour le mode strict
+          currentValueUSD: balanceInfo.valueUSD,
+          targetValueUSD,
+        });
+
+        // Créer des swaps pour atteindre l'allocation exacte
+        if (currentPercentage > allocation.targetPercentage) {
+          // Asset en excès - vendre la différence
+          const excessValueUSD = balanceInfo.valueUSD - targetValueUSD;
+          if (excessValueUSD > 0) {
+            // Trouver un asset en déficit pour vendre vers
+            const deficitAllocation = allocations.find((a) => {
+              const deficitAsset = a.assetId as any;
+              const deficitBalance = portfolioBalance.balances.find(
+                (b) => b.assetSymbol === deficitAsset.symbol
+              );
+              if (!deficitBalance) return false;
+              const deficitPercentage =
+                portfolioBalance.totalValueUSD > 0
+                  ? deficitBalance.valueUSD / portfolioBalance.totalValueUSD
+                  : 0;
+              return deficitPercentage < a.targetPercentage;
+            });
+
+            if (deficitAllocation) {
+              const deficitAsset = deficitAllocation.assetId as any;
+              swaps.push({
+                fromAsset: asset.symbol,
+                toAsset: deficitAsset.symbol,
+                amount: excessValueUSD, // Montant USD à swapper
+                expectedAmount: excessValueUSD,
+                reason: `Rééquilibrage strict: ${asset.symbol} -> ${deficitAsset.symbol}`,
+              });
+            }
+          }
+        }
+      }
+
+      return {
+        portfolioId,
+        totalValueUSD: portfolioBalance.totalValueUSD,
+        deviations,
+        needsRebalance: true, // Toujours true pour le mode strict
+        swaps,
+      };
+    } catch (error) {
+      consola.error('Erreur création plan rééquilibrage strict:', error);
+      throw error;
+    }
+  }
 }

@@ -44,13 +44,26 @@ const REBALANCE_THRESHOLDS = [
   { value: 0.1, label: '10%' },
 ];
 
+const REBALANCE_TYPES = [
+  {
+    value: 'threshold',
+    label: 'Tolerance threshold',
+    description: 'Rebalance only if the deviation exceeds the defined threshold',
+  },
+  {
+    value: 'strict_periodic',
+    label: 'Strict periodic',
+    description: 'Rebalance always towards the exact allocations at each cycle',
+  },
+];
+
 export const CreatePortfolio: React.FC<CreatePortfolioProps> = ({ onCreate }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState<boolean>(true);
 
   // Form state
-  const [name, setName] = useState<string>('Mon Portfolio Crypto');
+  const [name, setName] = useState<string>('My Portfolio Crypto');
   const [allocations, setAllocations] = useState<AllocationConfig[]>([
     { assetSymbol: 'WBTC', targetPercentage: 0.5 },
     { assetSymbol: 'WETH', targetPercentage: 0.3 },
@@ -58,18 +71,21 @@ export const CreatePortfolio: React.FC<CreatePortfolioProps> = ({ onCreate }) =>
   ]);
   const [rebalanceThreshold, setRebalanceThreshold] = useState<number>(0.05);
   const [monitoringFrequency, setMonitoringFrequency] = useState<string>('1h');
+  const [rebalanceType, setRebalanceType] = useState<string>('threshold');
 
   const { getAssets, createPortfolio } = useBackend();
 
-  // Charger les assets disponibles
+  // Load available assets
   useEffect(() => {
     const loadAssets = async () => {
       try {
         setAssetsLoading(true);
         const availableAssets = await getAssets();
+        console.log('✅ Assets chargés:', availableAssets);
         setAssets(availableAssets);
       } catch (error) {
-        console.error('Error loading assets:', error);
+        console.error('❌ Error loading assets:', error);
+        alert('Error loading available assets');
       } finally {
         setAssetsLoading(false);
       }
@@ -82,13 +98,13 @@ export const CreatePortfolio: React.FC<CreatePortfolioProps> = ({ onCreate }) =>
     event.preventDefault();
 
     if (!name.trim()) {
-      alert('Veuillez entrer un nom pour votre portfolio');
+      alert('Please enter a name for your portfolio');
       return;
     }
 
     const totalPercentage = allocations.reduce((sum, alloc) => sum + alloc.targetPercentage, 0);
     if (Math.abs(totalPercentage - 1) > 0.001) {
-      alert('Le total des allocations doit être exactement 100%');
+      alert('The total of allocations must be exactly 100%');
       return;
     }
 
@@ -99,11 +115,12 @@ export const CreatePortfolio: React.FC<CreatePortfolioProps> = ({ onCreate }) =>
         allocations,
         rebalanceThreshold,
         monitoringFrequency,
+        rebalanceType,
       });
       onCreate?.();
     } catch (error) {
       console.error('Error creating portfolio:', error);
-      alert('Erreur lors de la création du portfolio');
+      alert('Error creating portfolio');
     } finally {
       setLoading(false);
     }
@@ -125,30 +142,37 @@ export const CreatePortfolio: React.FC<CreatePortfolioProps> = ({ onCreate }) =>
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Portfolio Multi-Assets</CardTitle>
           <CardDescription className="mt-2 text-gray-600">
-            Créez un portfolio équilibré avec plusieurs cryptomonnaies. Le système rééquilibrera
-            automatiquement selon vos allocations cibles.
+            Create a balanced portfolio with multiple cryptocurrencies. The system will rebalance
+            automatically according to your target allocations.
             <br />
             <br />
-            <strong>Comment ça marche :</strong>
+            <strong>Two rebalancing modes:</strong>
+            <br />• <strong>Tolerance threshold</strong> : Rebalance only if the deviation exceeds
+            the defined threshold
+            <br />• <strong>Strict periodic</strong> : Rebalance always towards the exact
+            allocations at each cycle
             <br />
-            • Définissez vos allocations cibles (ex: 50% WBTC, 30% WETH, 20% USDC)
             <br />
-            • Le système surveille les prix et détecte les déviations
+            <strong>How it works:</strong>
             <br />
-            • Quand la déviation dépasse votre seuil, des swaps automatiques sont exécutés
-            <br />• Votre portfolio reste toujours équilibré selon vos préférences
+            • Set your target allocations (e.g. 50% WBTC, 30% WETH, 20% USDC)
+            <br />
+            • The system monitors the prices and detects deviations
+            <br />
+            • Automatic swaps are executed according to your chosen mode
+            <br />• Your portfolio remains balanced according to your preferences
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
           {/* Nom du portfolio */}
           <div className="space-y-2">
-            <Label htmlFor="portfolio-name">Nom du Portfolio</Label>
+            <Label htmlFor="portfolio-name">Portfolio Name</Label>
             <Input
               id="portfolio-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Mon Portfolio Crypto"
+              placeholder="My Portfolio Crypto"
               required
             />
           </div>
@@ -160,13 +184,34 @@ export const CreatePortfolio: React.FC<CreatePortfolioProps> = ({ onCreate }) =>
             onChange={setAllocations}
           />
 
+          {/* Type de rééquilibrage */}
+          <div className="space-y-2">
+            <Label htmlFor="rebalance-type">Rebalancing Type</Label>
+            <Select value={rebalanceType} onValueChange={setRebalanceType}>
+              <SelectTrigger id="rebalance-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REBALANCE_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    <div>
+                      <div className="font-medium">{type.label}</div>
+                      <div className="text-xs text-gray-500">{type.description}</div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Paramètres de rééquilibrage */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="rebalance-threshold">Seuil de Rééquilibrage</Label>
+              <Label htmlFor="rebalance-threshold">Rebalancing Threshold</Label>
               <Select
                 value={rebalanceThreshold.toString()}
                 onValueChange={(value) => setRebalanceThreshold(parseFloat(value))}
+                disabled={rebalanceType === 'strict_periodic'}
               >
                 <SelectTrigger id="rebalance-threshold">
                   <SelectValue />
@@ -180,12 +225,14 @@ export const CreatePortfolio: React.FC<CreatePortfolioProps> = ({ onCreate }) =>
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500">
-                Le rééquilibrage se déclenche quand la déviation dépasse ce seuil
+                {rebalanceType === 'strict_periodic'
+                  ? 'Not applicable in strict periodic mode'
+                  : 'Rebalancing is triggered when the deviation exceeds this threshold'}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="monitoring-frequency">Fréquence de Surveillance</Label>
+              <Label htmlFor="monitoring-frequency">Monitoring Frequency</Label>
               <Select value={monitoringFrequency} onValueChange={setMonitoringFrequency}>
                 <SelectTrigger id="monitoring-frequency">
                   <SelectValue />
@@ -198,16 +245,14 @@ export const CreatePortfolio: React.FC<CreatePortfolioProps> = ({ onCreate }) =>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">
-                Fréquence de vérification des prix et des allocations
-              </p>
+              <p className="text-xs text-gray-500">Frequency of checking prices and allocations</p>
             </div>
           </div>
         </CardContent>
 
         <CardFooter className="flex justify-center">
           <Button type="submit" disabled={loading} className="w-full md:w-auto px-8">
-            {loading ? 'Création...' : 'Créer le Portfolio'}
+            {loading ? 'Creation...' : 'Create the Portfolio'}
           </Button>
         </CardFooter>
       </form>

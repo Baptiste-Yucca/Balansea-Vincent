@@ -21,10 +21,11 @@ const formatAddress = (address: string | undefined) => {
 };
 
 export const Wallet: React.FC = () => {
-  const { chain, provider, usdcContract, wbtcContract } = useChain();
+  const { chain, provider, usdcContract, wbtcContract, wethContract } = useChain();
   const [ethBalance, setEthBalance] = useState<string>('0');
   const [usdcBalance, setUsdcBalance] = useState<string>('0');
   const [wbtcBalance, setWbtcBalance] = useState<string>('0');
+  const [wethBalance, setWethBalance] = useState<string>('0');
   const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
@@ -38,15 +39,17 @@ export const Wallet: React.FC = () => {
       setIsLoadingBalance(true);
       setError(null);
 
-      const [ethBalanceWei, usdcBalance, wbtcBalanceWei] = await Promise.all([
+      const [ethBalanceWei, usdcBalance, wbtcBalanceWei, wethBalanceWei] = await Promise.all([
         provider.getBalance(authInfo?.pkp.ethAddress),
         usdcContract.balanceOf(authInfo?.pkp.ethAddress),
         wbtcContract.balanceOf(authInfo?.pkp.ethAddress),
+        wethContract.balanceOf(authInfo?.pkp.ethAddress),
       ]);
 
       setEthBalance(ethers.utils.formatUnits(ethBalanceWei, 18));
       setUsdcBalance(ethers.utils.formatUnits(usdcBalance, 6));
       setWbtcBalance(ethers.utils.formatUnits(wbtcBalanceWei, 8));
+      setWethBalance(ethers.utils.formatUnits(wethBalanceWei, 18));
 
       setIsLoadingBalance(false);
     } catch (err: unknown) {
@@ -54,7 +57,7 @@ export const Wallet: React.FC = () => {
       setError(`Failed to fetch wallet balance`);
       setIsLoadingBalance(false);
     }
-  }, [authInfo, provider, usdcContract, wbtcContract]);
+  }, [authInfo, provider, usdcContract, wbtcContract, wethContract]);
 
   useEffect(() => {
     queueMicrotask(() => fetchPkpBalance());
@@ -117,7 +120,7 @@ export const Wallet: React.FC = () => {
         <Separator />
 
         <Box className="flex flex-row items-stretch justify-between">
-          <BoxDescription>ETH Balance:</BoxDescription>
+          <BoxDescription>ETH Balance (gas fees):</BoxDescription>
           <span
             style={{
               fontSize: '20px',
@@ -128,6 +131,19 @@ export const Wallet: React.FC = () => {
             {isLoadingBalance
               ? 'Loading...'
               : `${parseFloat(ethBalance).toFixed(8)} ${chain.symbol}`}
+          </span>
+        </Box>
+
+        <Box className="flex flex-row items-stretch justify-between">
+          <BoxDescription>WETH Balance:</BoxDescription>
+          <span
+            style={{
+              fontSize: '20px',
+              fontWeight: 'bold',
+              color: '#333',
+            }}
+          >
+            {isLoadingBalance ? 'Loading...' : `${parseFloat(wethBalance).toFixed(8)} WETH`}
           </span>
         </Box>
 

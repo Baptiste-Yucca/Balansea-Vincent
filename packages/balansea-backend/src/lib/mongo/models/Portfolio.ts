@@ -30,6 +30,12 @@ const portfolioSchemaDefinition = {
     enum: ['10s', '1m', '5m', '15m', '1h', '4h', '1d'],
     default: '1h',
   },
+  rebalanceType: {
+    required: true,
+    type: String,
+    enum: ['threshold', 'strict_periodic'],
+    default: 'threshold',
+  },
   totalValueUSD: {
     type: Number,
     default: 0,

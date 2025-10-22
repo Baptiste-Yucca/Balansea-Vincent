@@ -13,6 +13,10 @@ const USDC_CONTRACT_ADDRESSES: Record<number, string> = {
   [LIT_EVM_CHAINS.base.chainId]: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
 };
 
+const WETH_CONTRACT_ADDRESSES: Record<number, string> = {
+  [LIT_EVM_CHAINS.base.chainId]: '0x4200000000000000000000000000000000000006',
+};
+
 export const useChain = () => {
   const [chain, setChain] = useState<LITEVMChain>(LIT_EVM_CHAINS.base);
 
@@ -30,11 +34,18 @@ export const useChain = () => {
     provider
   );
 
+  const wethContract = new ethers.Contract(
+    WETH_CONTRACT_ADDRESSES[chain.chainId],
+    ERC20_ABI,
+    provider
+  );
+
   return {
     chain,
     setChain,
     provider,
     usdcContract,
     wbtcContract,
+    wethContract,
   };
 };

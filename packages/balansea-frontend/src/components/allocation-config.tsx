@@ -38,6 +38,11 @@ export const AllocationConfig: React.FC<AllocationConfigProps> = ({
     setLocalAllocations(allocations);
   }, [allocations]);
 
+  // Debug: Log des assets disponibles
+  useEffect(() => {
+    console.log('📋 Assets disponibles dans AllocationConfig:', availableAssets);
+  }, [availableAssets]);
+
   const updateAllocation = (index: number, updates: Partial<AllocationConfig>) => {
     const newAllocations = [...localAllocations];
     newAllocations[index] = { ...newAllocations[index], ...updates };
@@ -89,14 +94,14 @@ export const AllocationConfig: React.FC<AllocationConfigProps> = ({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Configuration des Allocations</span>
+          <span>Allocations configuration</span>
           <div className="flex items-center gap-2">
             <span className={`text-sm ${isTotalValid() ? 'text-green-600' : 'text-red-600'}`}>
-              Total: {(getTotalPercentage() * 100).toFixed(1)}%
+              Total percentage: {(getTotalPercentage() * 100).toFixed(1)}%
             </span>
             {!isTotalValid() && (
               <span className="text-xs text-red-500">
-                (Reste: {(getRemainingPercentage() * 100).toFixed(1)}%)
+                (Remaining: {(getRemainingPercentage() * 100).toFixed(1)}%)
               </span>
             )}
           </div>

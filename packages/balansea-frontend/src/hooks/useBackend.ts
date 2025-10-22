@@ -45,6 +45,7 @@ export type Portfolio = {
   isActive: boolean;
   rebalanceThreshold: number;
   monitoringFrequency: string;
+  rebalanceType: string;
   totalValueUSD: number;
   lastRebalanceAt?: string;
   pkpInfo: {
@@ -65,6 +66,7 @@ export interface CreatePortfolioRequest {
   }>;
   rebalanceThreshold?: number;
   monitoringFrequency?: string;
+  rebalanceType?: string;
 }
 
 export interface AllocationConfig {
@@ -83,6 +85,7 @@ export interface UpdatePortfolioSettingsRequest {
   name?: string;
   rebalanceThreshold?: number;
   monitoringFrequency?: string;
+  rebalanceType?: string;
   isActive?: boolean;
 }
 

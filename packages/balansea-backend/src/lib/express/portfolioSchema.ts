@@ -23,6 +23,7 @@ export const CreatePortfolioSchema = z.object({
     .enum(['10s', '1m', '5m', '15m', '1h', '4h', '1d'])
     .optional()
     .default('1h'),
+  rebalanceType: z.enum(['threshold', 'strict_periodic']).optional().default('threshold'),
 });
 
 // Schéma pour mettre à jour les allocations

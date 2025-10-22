@@ -24,9 +24,9 @@ export const Home: React.FC = () => {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Balansea</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Rééquilibrage automatique de portfolios multi-assets
+            Set your target allocations
             <br />
-            Définissez vos allocations cibles et laissez Vincent maintenir l'équilibre
+            And let BalanSea keep them balanced
           </p>
         </div>
 
@@ -36,8 +36,8 @@ export const Home: React.FC = () => {
           className="w-full"
         >
           <TabsList className="grid w-full grid-cols-3 mb-8">
-            <TabsTrigger value={Tab.CreatePortfolio}>Créer un Portfolio</TabsTrigger>
-            <TabsTrigger value={Tab.ActivePortfolios}>Mes Portfolios</TabsTrigger>
+            <TabsTrigger value={Tab.CreatePortfolio}>Create a Portfolio</TabsTrigger>
+            <TabsTrigger value={Tab.ActivePortfolios}>My Portfolios</TabsTrigger>
             <TabsTrigger value={Tab.MyWallet}>My Wallet</TabsTrigger>
           </TabsList>
 
