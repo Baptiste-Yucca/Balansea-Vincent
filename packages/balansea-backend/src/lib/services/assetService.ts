@@ -26,7 +26,7 @@ const DEFAULT_ASSETS = [
   {
     symbol: 'WBTC',
     name: 'Wrapped Bitcoin',
-    address: '0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22', // WBTC sur Base
+    address: '0x0555e30da8f98308edb960aa94c0db47230d2b9c', // WBTC sur Base
     decimals: 8,
     chainId: 8453,
     pythPriceId: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // BTC/USD sur Pyth

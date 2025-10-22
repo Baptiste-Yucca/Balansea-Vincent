@@ -14,7 +14,7 @@ const baseProvider = new ethers.providers.StaticJsonRpcProvider(BASE_RPC_URL);
 // Token addresses on Base
 const TOKEN_ADDRESSES = {
   USDC: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
-  WBTC: '0x0555E30da8f98308EdB98308EdB960aa94C0Db47230d2B9c',
+  WBTC: '0x0555e30da8f98308edb960aa94c0db47230d2b9c',
   WETH: '0x4200000000000000000000000000000000000006',
 };
 
@@ -55,8 +55,9 @@ export async function executeSwap(
     return swapHash;
   } catch (error) {
     consola.error(`Swap execution failed:`, error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Failed to execute swap ${swap.tokenInSymbol} -> ${swap.tokenOutSymbol}: ${error.message}`
+      `Failed to execute swap ${swap.tokenInSymbol} -> ${swap.tokenOutSymbol}: ${errorMessage}`
     );
   }
 }
@@ -74,8 +75,8 @@ export async function executeRebalanceSwaps(
     throw new Error(`Portfolio ${portfolioId} not found`);
   }
 
-  if (!portfolio.ethAddress || !portfolio.pkpPublicKey) {
-    throw new Error(`Portfolio ${portfolioId} missing ethAddress or pkpPublicKey`);
+  if (!portfolio.ethAddress || !portfolio.pkpInfo?.publicKey) {
+    throw new Error(`Portfolio ${portfolioId} missing ethAddress or pkpInfo.publicKey`);
   }
 
   const txHashes: string[] = [];
@@ -88,7 +89,7 @@ export async function executeRebalanceSwaps(
     );
 
     try {
-      const txHash = await executeSwap(swap, portfolio.ethAddress, portfolio.pkpPublicKey);
+      const txHash = await executeSwap(swap, portfolio.ethAddress, portfolio.pkpInfo.publicKey);
       txHashes.push(txHash);
 
       // Wait for transaction confirmation before next swap
@@ -97,8 +98,9 @@ export async function executeRebalanceSwaps(
       consola.info(`Swap ${i + 1} completed: ${txHash}`);
     } catch (error) {
       consola.error(`Swap ${i + 1} failed:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       // Stop execution on first failure (strict mode)
-      throw new Error(`Rebalancing stopped at swap ${i + 1}: ${error.message}`);
+      throw new Error(`Rebalancing stopped at swap ${i + 1}: ${errorMessage}`);
     }
   }
 
@@ -171,7 +173,29 @@ async function executeUniswapSwap(
   const { getSignedUniswapQuote, getUniswapToolClient } = await import(
     '../../executeDCASwap/vincentAbilities'
   );
-  const { handleOperationExecution } = await import('../../executeDCASwap/utils');
+  const { handleOperationExecution, getUserPermittedVersion } = await import(
+    '../../executeDCASwap/utils'
+  );
+  const { assertPermittedVersion } = await import('../../jobVersion');
+  const { env } = await import('../../../../env');
+  const { VINCENT_APP_ID } = env;
+
+  // Check user permissions for Vincent app
+  consola.info(`Checking permissions for user ${ethAddress}`);
+  const userPermittedAppVersion = await getUserPermittedVersion({
+    ethAddress,
+    appId: VINCENT_APP_ID,
+  });
+
+  if (!userPermittedAppVersion) {
+    throw new Error(`User ${ethAddress} revoked permission to run this app`);
+  }
+
+  // Use the permitted app version (default to version 1 for now)
+  const appVersion = 1;
+  const appVersionToRun = assertPermittedVersion(appVersion, userPermittedAppVersion);
+
+  consola.info(`Using app version ${appVersionToRun} for user ${ethAddress}`);
 
   // Get signed quote from Uniswap
   const signedUniswapQuote = await getSignedUniswapQuote({
@@ -203,7 +227,7 @@ async function executeUniswapSwap(
     throw new Error(`Uniswap tool execution failed: ${swapExecutionResult}`);
   }
 
-  const swapTxHash = swapExecutionResult.result.swapTxHash as string;
+  const swapTxHash = swapExecutionResult.result.swapTxHash as `0x${string}`;
 
   // Handle operation execution (gas sponsorship)
   await handleOperationExecution({
@@ -213,7 +237,7 @@ async function executeUniswapSwap(
     provider: baseProvider,
   });
 
-  return swapTxHash;
+  return swapTxHash as `0x${string}`;
 }
 
 /** Wait for transaction confirmation */
@@ -241,7 +265,7 @@ async function waitForTransaction(txHash: string, maxWaitTime: number = 60000): 
 
 /** Get token address by symbol */
 export function getTokenAddress(symbol: string): string {
-  const address = TOKEN_ADDRESSES[symbol.toUpperCase()];
+  const address = TOKEN_ADDRESSES[symbol.toUpperCase() as keyof typeof TOKEN_ADDRESSES];
   if (!address) {
     throw new Error(`Unknown token symbol: ${symbol}`);
   }
@@ -250,7 +274,7 @@ export function getTokenAddress(symbol: string): string {
 
 /** Get token decimals by symbol */
 export function getTokenDecimals(symbol: string): number {
-  const decimals = TOKEN_DECIMALS[symbol.toUpperCase()];
+  const decimals = TOKEN_DECIMALS[symbol.toUpperCase() as keyof typeof TOKEN_DECIMALS];
   if (decimals === undefined) {
     throw new Error(`Unknown token symbol: ${symbol}`);
   }

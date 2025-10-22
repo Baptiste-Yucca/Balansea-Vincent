@@ -19,9 +19,9 @@ export const Presentation: React.FC = () => {
   return (
     <Card data-testid="presentation" className="w-full md:max-w-md bg-white p-8 shadow-sm">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">Dynamic & Secure DCA on Base</CardTitle>
+        <CardTitle className="text-2xl font-bold">BalanSea</CardTitle>
         <CardDescription className="text-gray-600">
-          Automated Dollar-Cost Averaging for Wrapped Bitcoin (wBtc)
+          Automated assets' Balance & Rebalance
         </CardDescription>
       </CardHeader>
 

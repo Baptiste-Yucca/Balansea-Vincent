@@ -6,7 +6,7 @@ import { ethers } from 'ethers';
 const ERC20_ABI = ['function balanceOf(address owner) view returns (uint256)'];
 
 const WBTC_CONTRACT_ADDRESSES: Record<number, string> = {
-  [LIT_EVM_CHAINS.base.chainId]: '0x0555E30da8f98308EdB960aa94C0Db47230d2B9c',
+  [LIT_EVM_CHAINS.base.chainId]: '0x0555e30da8f98308edb960aa94c0db47230d2b9c',
 };
 
 const USDC_CONTRACT_ADDRESSES: Record<number, string> = {
