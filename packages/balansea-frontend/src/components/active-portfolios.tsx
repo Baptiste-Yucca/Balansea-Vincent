@@ -134,9 +134,7 @@ export const ActivePortfolios: React.FC = () => {
                   <CardTitle className="text-xl">{portfolio.name}</CardTitle>
                   <div className="flex items-center gap-2 mt-2">
                     {getStatusBadge(portfolio)}
-                    <Badge variant="outline">
-                      Threshold: {formatPercentage(portfolio.rebalanceThreshold)}
-                    </Badge>
+                    <Badge variant="outline">Id: {portfolio._id}</Badge>
                     <Badge variant="outline">{portfolio.monitoringFrequency}</Badge>
                   </div>
                 </div>

@@ -179,7 +179,7 @@ export class PythService {
       const testPriceIds = [
         '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // BTC/USD
         '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // ETH/USD
-        //'0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'  // USDC/USD
+        '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a', // USDC/USD
       ];
 
       const eventSource = await this.client.getPriceUpdatesStream(testPriceIds, streamOptions);
@@ -196,7 +196,7 @@ export class PythService {
 
           if (data && data.parsed && Array.isArray(data.parsed)) {
             updateCounter++;
-            consola.info(`Message reçu: [${updateCounter}]`);
+            /*consola.info(`Message reçu: [${updateCounter}]`);*/
             for (const update of data.parsed) {
               const normalize = (id: string) => id.toLowerCase().replace(/^0x/, '');
               const asset = assets.find(
@@ -209,9 +209,9 @@ export class PythService {
               const confidence = parseFloat(price.conf) * Math.pow(10, price.expo);
 
               const timestamp = new Date().toLocaleTimeString('fr-FR');
-              consola.info(
+              /*consola.info(
                 `[${timestamp}] #${updateCounter} ${asset.symbol}: $${priceInUsd.toFixed(2)} (±${confidence.toFixed(2)})`
-              );
+              );*/
 
               // Save to database
               await this.savePriceToDatabase(asset.symbol, priceInUsd, confidence);

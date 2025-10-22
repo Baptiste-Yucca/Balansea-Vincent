@@ -14,17 +14,16 @@ export type JobParams = {
 
 export async function portfolioMonitoring(job: JobType, sentryScope: Sentry.Scope): Promise<void> {
   const { portfolioId } = job.attrs.data;
-  consola.info(`Portfolio monitoring started for ${portfolioId}`);
+  consola.info(`${portfolioId} - monitoring started`);
   try {
     // 1. Check if portfolio exists and is active
     const portfolio = await Portfolio.findById(portfolioId);
     if (!portfolio || !portfolio.isActive) {
-      consola.warn(`Portfolio ${portfolioId} not found or inactive`);
+      consola.warn(
+        `Portfolio ${portfolioId} not found or inactive (isActive: ${portfolio?.isActive})`
+      );
       return;
     }
-
-    consola.info(`Portfolio ${portfolioId} (${portfolio.name}) is active`);
-
     // 2. Update balances from blockchain
     await updatePortfolioBalances(portfolioId);
 
@@ -50,13 +49,13 @@ export async function portfolioMonitoring(job: JobType, sentryScope: Sentry.Scop
     const needsRebalance = currentAllocations.some((alloc) => alloc.needsRebalance);
 
     if (needsRebalance) {
-      consola.info(`Portfolio ${portfolioId} needs rebalancing`);
+      consola.info(`${portfolioId} - needs rebalancing`);
       // TODO: Implement rebalancing logic in Phase 2.2
     } else {
-      consola.info(`Portfolio ${portfolioId} is already balanced`);
+      consola.info(`${portfolioId} - already balanced`);
     }
 
-    consola.info(`Portfolio monitoring completed for ${portfolioId}`);
+    consola.info(`${portfolioId} - Portfolio monitoring completed`);
   } catch (err) {
     sentryScope.captureException(err);
     const error = err as Error;
