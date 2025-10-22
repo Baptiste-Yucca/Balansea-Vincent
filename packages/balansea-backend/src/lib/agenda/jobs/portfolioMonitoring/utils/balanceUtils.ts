@@ -26,6 +26,7 @@ export interface PortfolioAllocation {
   currentPercentage: number;
   currentValueUSD: number;
   currentBalance: string;
+  currentPriceUSD: number; // Price per token in USD from Pyth
   gap: number; // Difference between current and target percentage
   needsRebalance: boolean;
 }
@@ -124,6 +125,14 @@ export async function calculateCurrentAllocations(
 
       if (!balance) {
         consola.warn(`No balance found for ${asset.symbol}, using zero`);
+
+        // Still need to get the price from Pyth for rebalancing calculations
+        const latestPrice = await PriceData.findOne({
+          assetId: asset._id,
+        }).sort({ timestamp: -1 });
+
+        const currentPriceUSD = latestPrice ? latestPrice.priceUSD : 0;
+
         portfolioAllocations.push({
           asset: {
             symbol: asset.symbol,
@@ -134,6 +143,7 @@ export async function calculateCurrentAllocations(
           currentPercentage: 0,
           currentValueUSD: 0,
           currentBalance: '0',
+          currentPriceUSD, // Price from Pyth even for zero balance
           gap: allocation.targetPercentage,
           needsRebalance: true,
         });
@@ -154,6 +164,7 @@ export async function calculateCurrentAllocations(
         currentPercentage,
         currentValueUSD: balance.usd,
         currentBalance: balance.balance,
+        currentPriceUSD: balance.priceUSD, // Price from Pyth
         gap,
         needsRebalance,
       });

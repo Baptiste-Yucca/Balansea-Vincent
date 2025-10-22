@@ -3,6 +3,8 @@ import { Job } from '@whisthub/agenda';
 import consola from 'consola';
 import { Portfolio } from '../../../mongo/models';
 import { calculateCurrentAllocations, updatePortfolioBalances } from './utils/balanceUtils';
+import { calculateRebalanceSwaps, validateSwapOperation } from './utils/rebalanceUtils';
+import { executeRebalanceSwaps } from './utils/swapUtils';
 
 export type JobType = Job<JobParams>;
 export type JobParams = {
@@ -50,7 +52,45 @@ export async function portfolioMonitoring(job: JobType, sentryScope: Sentry.Scop
 
     if (needsRebalance) {
       consola.info(`${portfolioId} - needs rebalancing`);
-      // TODO: Implement rebalancing logic in Phase 2.2
+
+      // Calculate rebalancing swaps
+      const rebalancePlan = calculateRebalanceSwaps(currentAllocations, 0.001); // 0.1% tolerance
+
+      if (rebalancePlan.isRebalanceNeeded && rebalancePlan.swaps.length > 0) {
+        consola.info(`Executing ${rebalancePlan.swaps.length} swaps for rebalancing`);
+
+        // Validate all swaps before execution
+        const validSwaps = rebalancePlan.swaps.filter(validateSwapOperation);
+        if (validSwaps.length !== rebalancePlan.swaps.length) {
+          consola.warn(
+            `Filtered out ${rebalancePlan.swaps.length - validSwaps.length} invalid swaps`
+          );
+        }
+
+        if (validSwaps.length > 0) {
+          try {
+            // Execute rebalancing swaps
+            const txHashes = await executeRebalanceSwaps(validSwaps, portfolioId);
+
+            consola.info(`Rebalancing completed successfully with ${txHashes.length} transactions`);
+
+            // Update portfolio balances after rebalancing
+            await updatePortfolioBalances(portfolioId);
+
+            // Update portfolio last rebalance timestamp
+            await Portfolio.findByIdAndUpdate(portfolioId, {
+              lastRebalanceAt: new Date(),
+            });
+          } catch (error) {
+            consola.error(`Rebalancing failed:`, error);
+            throw error; // Stop the job on rebalancing failure
+          }
+        } else {
+          consola.warn('No valid swaps to execute');
+        }
+      } else {
+        consola.info('No rebalancing swaps needed');
+      }
     } else {
       consola.info(`${portfolioId} - already balanced`);
     }
