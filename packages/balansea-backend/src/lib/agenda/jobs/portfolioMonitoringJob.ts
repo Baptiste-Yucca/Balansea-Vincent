@@ -77,7 +77,7 @@ export class PortfolioMonitoringJob {
         recipient: plan.portfolioId, // À adapter selon votre logique
       }));
 
-      // 2. Exécuter les swaps via Uniswap
+      // 2. Exécuter les swaps
       const swapResults = await DynamicSwapService.executeRebalanceSwaps(dynamicSwaps);
 
       // 3. Enregistrer les résultats en base

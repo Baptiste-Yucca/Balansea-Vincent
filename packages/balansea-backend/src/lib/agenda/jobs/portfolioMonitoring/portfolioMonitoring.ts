@@ -5,9 +5,11 @@ import { Portfolio } from '../../../mongo/models';
 import { calculateCurrentAllocations, updatePortfolioBalances } from './utils/balanceUtils';
 import { calculateRebalanceSwaps, validateSwapOperation } from './utils/rebalanceUtils';
 import { executeRebalanceSwaps } from './utils/swapUtils';
+import { type AppData } from '../jobVersion';
 
 export type JobType = Job<JobParams>;
 export type JobParams = {
+  app: AppData;
   portfolioId: string;
   ethAddress?: string;
   rebalanceType?: string;
@@ -70,7 +72,7 @@ export async function portfolioMonitoring(job: JobType, sentryScope: Sentry.Scop
         if (validSwaps.length > 0) {
           try {
             // Execute rebalancing swaps
-            const txHashes = await executeRebalanceSwaps(validSwaps, portfolioId);
+            const txHashes = await executeRebalanceSwaps(job, validSwaps, portfolioId);
 
             consola.info(`Rebalancing completed successfully with ${txHashes.length} transactions`);
 

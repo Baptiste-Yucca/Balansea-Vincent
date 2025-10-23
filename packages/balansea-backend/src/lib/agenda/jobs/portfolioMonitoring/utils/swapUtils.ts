@@ -3,6 +3,8 @@ import { ethers } from 'ethers';
 import { SwapOperation } from './rebalanceUtils';
 import { Portfolio } from '../../../../mongo/models';
 import { env } from '../../../../env';
+import { balanceOf, allowance, getERC20Contract } from './get-erc20-info';
+import { JobType, JobParams } from '../portfolioMonitoring';
 
 const { BASE_RPC_URL, VINCENT_APP_ID } = env;
 
@@ -26,6 +28,7 @@ const TOKEN_DECIMALS = {
 
 /** Execute a single swap operation using Uniswap via Vincent abilities */
 export async function executeSwap(
+  job: JobType,
   swap: SwapOperation,
   ethAddress: string,
   pkpPublicKey: string
@@ -35,21 +38,7 @@ export async function executeSwap(
   );
 
   try {
-    // 1. Handle token approval if needed
-    const approvalHash = await handleTokenApproval(
-      swap.tokenInAddress,
-      swap.amountInTokens,
-      ethAddress
-    );
-
-    if (approvalHash) {
-      consola.info(`Token approval tx: ${approvalHash}`);
-      // Wait for approval confirmation if needed
-      await waitForTransaction(approvalHash);
-    }
-
-    // 2. Execute the swap
-    const swapHash = await executeUniswapSwap(swap, ethAddress, pkpPublicKey);
+    const swapHash = await executeUniswapSwap(job, swap, ethAddress, pkpPublicKey);
 
     consola.info(`Swap executed successfully: ${swapHash}`);
     return swapHash;
@@ -64,6 +53,7 @@ export async function executeSwap(
 
 /** Execute multiple swaps in sequence for portfolio rebalancing */
 export async function executeRebalanceSwaps(
+  job: JobType,
   swaps: SwapOperation[],
   portfolioId: string
 ): Promise<string[]> {
@@ -89,7 +79,12 @@ export async function executeRebalanceSwaps(
     );
 
     try {
-      const txHash = await executeSwap(swap, portfolio.ethAddress, portfolio.pkpInfo.publicKey);
+      const txHash = await executeSwap(
+        job,
+        swap,
+        portfolio.ethAddress,
+        portfolio.pkpInfo.publicKey
+      );
       txHashes.push(txHash);
 
       // Wait for transaction confirmation before next swap
@@ -112,7 +107,8 @@ export async function executeRebalanceSwaps(
 async function handleTokenApproval(
   tokenAddress: string,
   amount: string,
-  ethAddress: string
+  ethAddress: string,
+  spenderAddress: string
 ): Promise<string | undefined> {
   // Import Vincent abilities dynamically to avoid circular dependencies
   const { getErc20ApprovalToolClient } = await import('../../executeDCASwap/vincentAbilities');
@@ -127,9 +123,9 @@ async function handleTokenApproval(
     alchemyGasSponsorPolicyId,
     chainId: BASE_CHAIN_ID,
     rpcUrl: BASE_RPC_URL,
-    spenderAddress: BASE_UNISWAP_V3_ROUTER,
+    spenderAddress: spenderAddress, //BASE_UNISWAP_V3_ROUTER,
     tokenAddress,
-    tokenAmount: ethers.BigNumber.from(amount).mul(2).toString(), // Approve 2x to avoid frequent approvals
+    tokenAmount: ethers.BigNumber.from(amount).mul(5).toString(), // Approve 2x to avoid frequent approvals
   };
   const approvalContext = {
     delegatorPkpEthAddress: ethAddress,
@@ -165,6 +161,7 @@ async function handleTokenApproval(
 
 /** Execute Uniswap swap using Vincent abilities */
 async function executeUniswapSwap(
+  job: JobType,
   swap: SwapOperation,
   ethAddress: string,
   pkpPublicKey: string
@@ -177,25 +174,75 @@ async function executeUniswapSwap(
     '../../executeDCASwap/utils'
   );
   const { assertPermittedVersion } = await import('../../jobVersion');
-  const { env } = await import('../../../../env');
-  const { VINCENT_APP_ID } = env;
 
   // Check user permissions for Vincent app
   consola.info(`Checking permissions for user ${ethAddress}`);
-  const userPermittedAppVersion = await getUserPermittedVersion({
-    ethAddress,
-    appId: VINCENT_APP_ID,
-  });
-
+  const [tokenInBalance, tokenInAllowance, userPermittedAppVersion] = await Promise.all([
+    balanceOf(getERC20Contract(swap.tokenInAddress, baseProvider), ethAddress),
+    allowance(
+      getERC20Contract(swap.tokenInAddress, baseProvider),
+      ethAddress,
+      BASE_UNISWAP_V3_ROUTER
+    ),
+    getUserPermittedVersion({ ethAddress, appId: VINCENT_APP_ID }),
+  ]);
+  if (tokenInBalance.lt(swap.amountInTokens)) {
+    throw new Error(
+      `Not enough balance for account ${ethAddress} - please fund this account with ${swap.tokenInSymbol} to swap`
+    );
+  }
   if (!userPermittedAppVersion) {
     throw new Error(`User ${ethAddress} revoked permission to run this app`);
   }
 
-  // Use the permitted app version (default to version 1 for now)
-  const appVersion = 1;
+  /*const appVersion = job.attrs.data.app.version;
+  // REMINDER We dont update update jobs version
   const appVersionToRun = assertPermittedVersion(appVersion, userPermittedAppVersion);
 
-  consola.info(`Using app version ${appVersionToRun} for user ${ethAddress}`);
+  if (appVersionToRun !== appVersion) {
+    // User updated the permitted app version after creating the job, so we need to update it
+    // eslint-disable-next-line no-param-reassign
+    job.attrs.data.app = { ...job.attrs.data.app, version: appVersionToRun };
+    await job.save();
+  }*/
+
+  consola.log('Job details', {
+    ethAddress,
+    amountInTokens: swap.amountInTokens,
+    userPermittedAppVersion,
+    tokenInBalance: ethers.utils.formatUnits(tokenInBalance, swap.tokenInDecimals),
+  });
+
+  consola.log('Token in allowance', {
+    tokenInAllowance: tokenInAllowance,
+  });
+  if (tokenInAllowance.gte(swap.amountInTokens)) {
+    return `OK` as `0x${string}`;
+  }
+
+  const approvalHash = await handleTokenApproval(
+    swap.tokenInAddress,
+    swap.amountInTokens,
+    ethAddress,
+    BASE_UNISWAP_V3_ROUTER
+  );
+
+  if (approvalHash) {
+    await handleOperationExecution({
+      isSponsored: true, // Using Alchemy gas sponsorship
+      operationHash: approvalHash as `0x${string}`,
+      pkpPublicKey,
+      provider: baseProvider,
+    });
+  }
+
+  //const swapHash = await handleSwapExecution({
+  //  delegatorAddress: ethAddress as `0x${string}`,
+  //  tokenInAddress: swap.tokenInAddress,
+  //  tokenInAmount: swap.amountInTokens,
+  //  tokenInDecimals: swap.tokenInDecimals,
+  //  tokenOutAddress: swap.tokenOutAddress,
+  //});
 
   // Get signed quote from Uniswap
   const signedUniswapQuote = await getSignedUniswapQuote({
@@ -223,6 +270,7 @@ async function executeUniswapSwap(
 
   // Execute swap
   const swapExecutionResult = await uniswapToolClient.execute(swapParams, swapContext);
+  consola.trace('Uniswap Swap Vincent Tool Response:', swapExecutionResult);
   if (!swapExecutionResult.success) {
     throw new Error(`Uniswap tool execution failed: ${swapExecutionResult}`);
   }
@@ -230,12 +278,12 @@ async function executeUniswapSwap(
   const swapTxHash = swapExecutionResult.result.swapTxHash as `0x${string}`;
 
   // Handle operation execution (gas sponsorship)
-  await handleOperationExecution({
-    isSponsored: true, // Using Alchemy gas sponsorship
-    operationHash: swapTxHash,
-    pkpPublicKey,
-    provider: baseProvider,
-  });
+  //await handleOperationExecution({
+  //  isSponsored: true, // Using Alchemy gas sponsorship
+  //  operationHash: swapTxHash,
+  //  pkpPublicKey,
+  //  provider: baseProvider,
+  //});
 
   return swapTxHash as `0x${string}`;
 }
